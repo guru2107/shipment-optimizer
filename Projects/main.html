@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Shipment Route Optimizer</title>
+    <style>
+        .container { max-width: 800px; margin: 50px auto; padding: 20px; }
+        .upload-box { border: 2px dashed #ccc; padding: 20px; text-align: center; margin: 20px 0; }
+        .hidden { display: none; }
+        .downloads { margin-top: 20px; }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Shipment Route Optimizer</h1>
+        
+        <div class="upload-box">
+            <h3>Upload Input Files</h3>
+            <input type="file" id="storeFile" accept=".csv">
+            <br><br>
+            <input type="file" id="shipmentFile" accept=".csv">
+            <br><br>
+            <input type="file" id="vehicleFile" accept=".csv">
+            <br><br>
+            <button onclick="processFiles()">Process Files</button>
+        </div>
+
+        <div id="loading" class="hidden">
+            <h3>Processing... Please wait</h3>
+        </div>
+
+        <div id="downloadSection" class="hidden">
+            <h3>Download Results:</h3>
+            <div class="downloads">
+                <button onclick="downloadFile('csv')">Download CSV Results</button>
+                <button onclick="downloadFile('map')">Download Map</button>
+            </div>
+        </div>
+
+        <div id="error" class="hidden" style="color: red;"></div>
+    </div>
+
+    <script>
+        let currentSession = null;
+
+        async function processFiles() {
+            const storeFile = document.getElementById('storeFile').files[0];
+            const shipmentFile = document.getElementById('shipmentFile').files[0];
+            const vehicleFile = document.getElementById('vehicleFile').files[0];
+            
+            if (!storeFile || !shipmentFile || !vehicleFile) {
+                showError('Please upload all files');
+                return;
+            }
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('error').classList.add('hidden');
+
+            const formData = new FormData();
+            formData.append('store_file', storeFile);
+            formData.append('shipment_file', shipmentFile);
+            formData.append('vehicle_file', vehicleFile);
+
+            try {
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    currentSession = data.session_id;
+                    document.getElementById('downloadSection').classList.remove('hidden');
+                } else {
+                    showError(data.message || 'Processing failed');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        function downloadFile(type) {
+            if (!currentSession) return;
+            
+            const path = type === 'csv' 
+                ? /download/${currentSession}/output_trips.csv
+                : /download/${currentSession}/map.html;
+            
+            window.location.href = path;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
